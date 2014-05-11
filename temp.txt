@@ -1,0 +1,9 @@
+[91mmethod = stm[0m
+warm up complete.
+parallel firewall test
+throughput: 1978
+count: 3956822
+worker throughput: 1978
+worker count: 3956822
+accepted:53698
+time: 2000
