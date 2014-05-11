@@ -76,9 +76,9 @@ class FirewallPacketParallelTest {
     final int numWorkers = Integer.parseInt(args[11]);
     final String method = args[12];
 
-    final int segListMaxLevel = 5;
+    final int segListMaxLevel = 6;
     final int numBin = 50;
-    final int queueDepth = 256/numWorkers+1;
+    final int queueDepth = 256/numWorkers;
 
     StopWatch timer = new StopWatch();
     // allocate and initialize Lamport queues.

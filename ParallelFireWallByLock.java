@@ -20,6 +20,8 @@ public class ParallelFireWallByLock implements FireWall {
 
 	public int totalCount = 0;
 	public int totalAccepted = 0;
+	
+	public boolean letsCache = true;
 
 	public int getTotalAccepted() {
 		return this.totalAccepted;
@@ -57,7 +59,8 @@ public class ParallelFireWallByLock implements FireWall {
 			try{
 				tablePng[pkt.config.address] = !pkt.config.personaNonGrata;
 				SegmentList list = tableR[pkt.config.address];
-				receiverCache[pkt.config.address] = new ConcurrentHashMap<Integer, Boolean>();
+				if(letsCache)
+					receiverCache[pkt.config.address] = new ConcurrentHashMap<Integer, Boolean>();
 				list.add(pkt.config.addressBegin, pkt.config.addressEnd, 
 									pkt.config.acceptingRange);
 			}finally{
@@ -67,13 +70,18 @@ public class ParallelFireWallByLock implements FireWall {
 			Boolean sendPermission = tablePng[pkt.header.source];
 			if((boolean)sendPermission == false) return;
 			boolean incache = false;
-			Boolean cache = receiverCache[pkt.header.dest].get(pkt.header.source);
-			if(cache != null) {
-				incache = (boolean)cache;
+			if(letsCache) {
+				Boolean cache = receiverCache[pkt.header.dest].get(pkt.header.source);
+				if(cache != null) {
+					incache = (boolean)cache;
+				}else{
+					SegmentList receivePermission = tableR[pkt.header.dest];
+					incache = receivePermission.contains(pkt.header.source);
+					receiverCache[pkt.header.dest].put(pkt.header.source, incache);
+				}
 			}else{
 				SegmentList receivePermission = tableR[pkt.header.dest];
 				incache = receivePermission.contains(pkt.header.source);
-				receiverCache[pkt.header.dest].put(pkt.header.source, incache);
 			}
 			if(incache){
 				Lock lock_s = this.fineLocks[Math.min(pkt.header.source, pkt.header.dest)], 
