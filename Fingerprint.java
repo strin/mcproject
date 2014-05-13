@@ -3,9 +3,9 @@ class Fingerprint {
   final long m = 0xFFFFFFFFFFFFL;
   final long a = 25214903917L;
   final long c = 11L;
-  static {
+  /*static {
       System.loadLibrary("Fingerprint");
-  }
+  }*/
   long getFingerprint(long iterations, long startSeed) {
 	return getFingerprintWithoutAnd(iterations, startSeed);
   }

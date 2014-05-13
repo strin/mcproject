@@ -1,5 +1,6 @@
 import java.util.concurrent.locks.*;
 import java.lang.UnsupportedOperationException;
+import java.util.*;
 
 @SuppressWarnings("unchecked")
 class FirewallPacketSerialTest {
@@ -184,12 +185,10 @@ class FirewallPacketPipelineTest {
     LamportQueue<Packet>[] queues = new LamportQueue[numWorkers];
 
     ReentrantLock[] locks = new ReentrantLock[numWorkers];
-    ReentrantLock[] dispatcher_locks = new ReentrantLock[numWorkers];
 
     for(int i = 0; i < queues.length; i++) {
         queues[i] = new LamportQueue<Packet>(queueDepth);
         locks[i] = new ReentrantLock();
-        dispatcher_locks[i] = new ReentrantLock();
         locks[i].lock();
     }
 
@@ -197,13 +196,42 @@ class FirewallPacketPipelineTest {
     PaddedPrimitiveNonVolatile<Boolean> done = new PaddedPrimitiveNonVolatile<Boolean>(false);
     PaddedPrimitive<Boolean> memFence = new PaddedPrimitive<Boolean>(false);
 
+
     // allocate packet source.
     PacketGenerator[] gen = new PacketGenerator[numdispatchers];
-    
-    // allocate packet workers. 
+	int pin = 0, span = numWorkers/numdispatchers;
+	for(int i = 0; i < numdispatchers; i++) {
+        gen[i] = new PacketGenerator(numAddrLog, numTrainsLog, meanTrainSize, meanTransPerComm, 
+                                            meanWindow, meanCommsPerAddr, meanWork, configFraction, pngFraction, accFraction);
+	}
+
+	// create firewall concurrent object.
     FireWall wall = null;
     wall = new ParallelFireWallByLock(done, numAddrLog, segListMaxLevel, numBin, gen[0]);
     wall.warmup();
+ 
+
+    // allocate packet dispatcher.
+    ParallelPacketDispatcher[] dispatcher = new ParallelPacketDispatcher[numdispatchers];
+    Thread[] dispatcherThreads = new Thread[numdispatchers];
+    for(int i = 0; i < numdispatchers; i++) {
+		ArrayList<LamportQueue> list = new ArrayList<LamportQueue>();
+		for(pin = i*span; pin < (i+1)*span; pin++) {
+			list.add(queues[pin]);
+		}
+		if(i == numdispatchers-1) {
+			for(; pin < numWorkers; pin++) {
+				list.add(queues[pin]);
+			}
+		}
+        dispatcher[i] = new ParallelPacketDispatcher(done, gen[i], wall, list.toArray(new LamportQueue[list.size()]),
+														queueDepth, numdispatchers == 1);
+        dispatcherThreads[i] = new Thread(dispatcher[i]);
+        dispatcherThreads[i].start();
+    }
+
+
+    // allocate packet workers. 
     
     Thread[] workerThreads = new Thread[numWorkers];
     ParallelFireWallWorker[] workers = new ParallelFireWallWorker[numWorkers];
@@ -213,20 +241,9 @@ class FirewallPacketPipelineTest {
         workerThreads[i].start();
     }
 
-    // allocate packet dispatcher.
-    ParallelPacketDispatcher[] dispatcher = new ParallelPacketDispatcher[numdispatchers];
-    Thread[] dispatcherThreads = new Thread[numdispatchers];
-    for(int i = 0; i < numdispatchers; i++) {
-        gen[i] = new PacketGenerator(numAddrLog, numTrainsLog, meanTrainSize, meanTransPerComm, 
-                                            meanWindow, meanCommsPerAddr, meanWork, configFraction, pngFraction, accFraction);
-        dispatcher[i] = new ParallelPacketDispatcher(done, gen[i], wall, numWorkers, queues, dispatcher_locks, queueDepth, numdispatchers == 1);
-        dispatcherThreads[i] = new Thread(dispatcher[i]);
-        dispatcherThreads[i].start();
-    }
-
     // start miracle ...
     try {
-        Thread.sleep(200);
+         Thread.sleep(200);
     }catch(InterruptedException e) {;}
 
     for(int i = 0; i < numWorkers; i++) {

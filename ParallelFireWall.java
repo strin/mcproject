@@ -68,6 +68,7 @@ class ParallelFireWallByLock implements FireWall {
 							pkt.config.acceptingRange);
 	}
 
+	/* optimistic locking */
 	public void processPacket(Packet pkt) {
 		if(pkt.type == Packet.MessageType.ConfigPacket) { // configuration packet.
 			Lock lock = this.fineLocks[pkt.config.address];
@@ -77,41 +78,89 @@ class ParallelFireWallByLock implements FireWall {
 			}finally{
 				lock.unlock();
 			}
-		}else{  // data packet.
+		}else{  // data packet.		
 			Boolean sendPermission = tablePng[pkt.header.source];
 			if((boolean)sendPermission == false) return;
-			boolean incache = false;
-			if(letsCache) {
-				Boolean cache = receiverCache[pkt.header.dest].get(pkt.header.source);
-				if(cache != null) {
-					incache = (boolean)cache;
+			Lock lock = this.fineLocks[Math.min(pkt.header.source, pkt.header.dest)];
+			lock.lock();			
+			try{
+				sendPermission = tablePng[pkt.header.source];
+				if((boolean)sendPermission == false) return;
+				boolean incache = false;
+				if(letsCache) {
+					Boolean cache = receiverCache[pkt.header.dest].get(pkt.header.source);
+					if(cache != null) {
+						incache = (boolean)cache;
+					}else{
+						SegmentList receivePermission = tableR[pkt.header.dest];
+						incache = receivePermission.contains(pkt.header.source);
+						receiverCache[pkt.header.dest].put(pkt.header.source, incache);
+					}
 				}else{
 					SegmentList receivePermission = tableR[pkt.header.dest];
 					incache = receivePermission.contains(pkt.header.source);
-					receiverCache[pkt.header.dest].put(pkt.header.source, incache);
 				}
-			}else{
-				SegmentList receivePermission = tableR[pkt.header.dest];
-				incache = receivePermission.contains(pkt.header.source);
+				if(incache){
+					long fingerprint = this.fingerprint.getFingerprint(pkt.body.iterations, pkt.body.seed);
+					/*Histogram hist = histograms.get(pkt.header.tag);
+					if(hist == null) {
+						hist = new Histogram(Integer.MIN_VALUE, Integer.MAX_VALUE, numBin);
+						histograms.put(pkt.header.tag, hist);
+					}
+					hist.add(fingerprint);*/
+					totalAccepted++;
+				}
+			}finally{
+				lock.unlock();
 			}
-			if(incache){
-				Lock lock_s = this.fineLocks[Math.min(pkt.header.source, pkt.header.dest)], 
-				lock_e = this.fineLocks[Math.max(pkt.header.source, pkt.header.dest)];
-				lock_s.lock();
-				if(lock_e != lock_s) lock_e.lock();
-				try{
-						long fingerprint = this.fingerprint.getFingerprint(pkt.body.iterations, pkt.body.seed);
-						/*Histogram hist = histograms.get(pkt.header.tag);
-						if(hist == null) {
-							hist = new Histogram(Integer.MIN_VALUE, Integer.MAX_VALUE, numBin);
-							histograms.put(pkt.header.tag, hist);
-						}
-						hist.add(fingerprint);*/
-						totalAccepted++;
-				}finally{
-					lock_s.unlock();
-					if(lock_e != lock_s) lock_e.unlock();
+		}
+	}
+
+	/* pair locking */
+	public void processPacket_pairlock(Packet pkt) {
+		if(pkt.type == Packet.MessageType.ConfigPacket) { // configuration packet.
+			Lock lock = this.fineLocks[pkt.config.address];
+			lock.lock();
+			try{
+				this.processConfigPacket(pkt);			
+			}finally{
+				lock.unlock();
+			}
+		}else{  // data packet.		
+			Lock lock_s = this.fineLocks[Math.min(pkt.header.source, pkt.header.dest)], 
+			lock_e = this.fineLocks[Math.max(pkt.header.source, pkt.header.dest)];
+			lock_s.lock();
+			if(lock_e != lock_s) lock_e.lock();
+			try{
+				Boolean sendPermission = tablePng[pkt.header.source];
+				if((boolean)sendPermission == false) return;
+				boolean incache = false;
+				if(letsCache) {
+					Boolean cache = receiverCache[pkt.header.dest].get(pkt.header.source);
+					if(cache != null) {
+						incache = (boolean)cache;
+					}else{
+						SegmentList receivePermission = tableR[pkt.header.dest];
+						incache = receivePermission.contains(pkt.header.source);
+						receiverCache[pkt.header.dest].put(pkt.header.source, incache);
+					}
+				}else{
+					SegmentList receivePermission = tableR[pkt.header.dest];
+					incache = receivePermission.contains(pkt.header.source);
 				}
+				if(incache){
+					long fingerprint = this.fingerprint.getFingerprint(pkt.body.iterations, pkt.body.seed);
+					/*Histogram hist = histograms.get(pkt.header.tag);
+					if(hist == null) {
+						hist = new Histogram(Integer.MIN_VALUE, Integer.MAX_VALUE, numBin);
+						histograms.put(pkt.header.tag, hist);
+					}
+					hist.add(fingerprint);*/
+					totalAccepted++;
+				}
+			}finally{
+				lock_s.unlock();
+				if(lock_e != lock_s) lock_e.unlock();
 			}
 		}
 	}
@@ -164,23 +213,25 @@ class ParallelFireWallWorker implements Runnable {
 	    Packet pkt = null;
 	    Lock lock;
 	    int queueid;
+		locksOnQueue[id].lock();
+		locksOnQueue[id].unlock();
 	    while(!done.value || !queues[id].isempty()) {
 	      if(!done.value) {
-	        // queueid = (int)(Math.random()*this.numQueues);
+	        //queueid = (int)(Math.random()*this.numQueues);
 	        queueid = id;
 	      }else{
 	        queueid = id;
 	      }
 	      queue = queues[queueid];
 	      lock = locksOnQueue[queueid];
-	      // if(!lock.tryLock()) continue;
+	      //if(!lock.tryLock()) continue;
 	      try{
 	        pkt = queue.remove();
 	      }catch(Exception ee) {
 	        continue;
 	      }
 	      finally{
-	        // lock.unlock();
+	        //lock.unlock();
 	      }
 	      firewall.processPacket(pkt);
 	      totalCount++;

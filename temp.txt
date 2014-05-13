@@ -1,9 +1,3 @@
-[91mmethod = stm[0m
-warm up complete.
-parallel firewall test
-throughput: 1978
-count: 3956822
-worker throughput: 1978
-worker count: 3956822
-accepted:53698
-time: 2000
+job id is 112261. output file name is strin-335.
+Tue May 13 18:10:09 2014 activeTue May 13 18:10:10 2014 activeTue May 13 18:10:12 2014 active
+   --- strin-335.stdout --- 
