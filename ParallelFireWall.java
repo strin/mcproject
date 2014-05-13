@@ -6,6 +6,7 @@ import java.util.concurrent.*;
 
 interface FireWall extends Runnable {
 	public void processPacket(Packet pkt);
+	public void processDataPacket(Packet
 	public void warmup();
 	public int  getTotalAccepted();
 }

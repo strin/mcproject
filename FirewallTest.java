@@ -118,7 +118,7 @@ class FirewallPacketParallelTest {
     }
 
     // allocate packet dispatcher.
-    ParallelPacketDispatcher dispatcher = new ParallelPacketDispatcher(done, gen, numWorkers, queues, queueDepth);
+    SerialPacketDispatcher dispatcher = new SerialPacketDispatcher(done, gen, numWorkers, queues, queueDepth);
     Thread dispatcherThread = new Thread(dispatcher);
     dispatcherThread.start();
 
