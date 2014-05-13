@@ -1,6 +1,5 @@
 import java.util.concurrent.locks.*;
 import java.lang.UnsupportedOperationException;
-import org.deuce.Atomic;
 
 @SuppressWarnings("unchecked")
 class FirewallPacketSerialTest {

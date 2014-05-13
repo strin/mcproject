@@ -1,5 +1,4 @@
 import java.util.*;
-import org.deuce.Atomic;
 import java.util.concurrent.locks.*;
 import java.util.concurrent.*;
 

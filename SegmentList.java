@@ -1,5 +1,4 @@
 import java.util.Random;
-import org.deuce.Atomic;
 import java.util.concurrent.*;
 import java.util.concurrent.locks.*;
 

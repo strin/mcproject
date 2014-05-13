@@ -1,6 +1,5 @@
 import java.util.Hashtable;
 import java.util.concurrent.locks.*;
-import org.deuce.Atomic;
 import java.util.concurrent.*;
 
 
