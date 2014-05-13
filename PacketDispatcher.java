@@ -44,7 +44,7 @@ class SerialPacketDispatcher implements PacketDispatcher {
 	}
 }
 
-class ParallelPacketDispatcher(
+class ParallelPacketDispatcher implements PacketDispatcher {
 
 
 	PaddedPrimitiveNonVolatile<Boolean> done;
@@ -52,27 +52,30 @@ class ParallelPacketDispatcher(
 	final int numSources;
 	final LamportQueue<Packet>[] queues;
 	final int queueDepth;
+	final boolean runSolo;
 	FireWall firewall;
 	Lock[] lock;
 	public int totalCount;
+
 
 	public ParallelPacketDispatcher(PaddedPrimitiveNonVolatile<Boolean> done, 
 									PacketGenerator gen, 
 									FireWall firewall,
 									int numSources, 
 									LamportQueue<Packet>[] queues, 
-									Lcok[] lock,
+									Lock[] lock,
 									int queueDepth,
-									) {						
+									boolean runSolo) {						
 		this.done = done;
 		this.gen = gen;
 	
-	this.numSources = numSources;
+		this.numSources = numSources;
 		this.queues = queues;
 		this.queueDepth = queueDepth;
 		this.totalCount = 0;
 		this.firewall = firewall;
 		this.lock = lock;
+		this.runSolo = runSolo;
 	}
 
 	public void run() {
@@ -80,17 +83,24 @@ class ParallelPacketDispatcher(
 			for(int i = 0; i < numSources; i++) {
 				if(queues[i].isfull()) {
 					continue;
-				}
+			  	}
 				lock[i].lock();
 				Packet pkt	= gen.getPacket();
 				try {
+					if(pkt.type == Packet.MessageType.ConfigPacket) {
+						if(this.runSolo) {
+							firewall.processConfigPacket(pkt);
+						}else{
+							firewall.processPacket(pkt);
+						}
+					}
 					queues[i].add(pkt);
 				}catch(IllegalStateException e) {
 					throw e;
 				}finally{
 					lock[i].unlock();
 				}
-				totalCount++
+				totalCount++;
 			}
 		}
 	}
