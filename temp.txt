@@ -1,3 +1,8 @@
-job id is 112261. output file name is strin-335.
-Tue May 13 18:10:09 2014 activeTue May 13 18:10:10 2014 activeTue May 13 18:10:12 2014 active
-   --- strin-335.stdout --- 
+warm up complete.
+parallel firewall test
+throughput: 742
+count: 1485474
+worker throughput: 742
+worker count: 1485474
+accepted:1050176
+time: 2001

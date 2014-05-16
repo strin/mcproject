@@ -50,8 +50,9 @@ class ParallelFireWallByLock implements FireWall {
 		this.fineLocks = new ReentrantLock[1<<numAddressLog];
 		this.receiverCache = (ConcurrentHashMap<Integer, Boolean>[])new ConcurrentHashMap[1<<numAddressLog];
 		for(int i = 0; i < (1<<numAddressLog); i++) {
-			this.tablePng[i] = new Boolean(false);
+			this.tablePng[i] = new Boolean(true);
 			this.tableR[i] = new SegmentList(segListMaxLevel, 32);
+			this.tableR[i].add(0, 1<<numAddressLog, true);
 			this.histograms[i] = new Histogram(Integer.MIN_VALUE, Integer.MAX_VALUE, numBin);
 			this.fineLocks[i] = new ReentrantLock();
 			this.receiverCache[i] = new ConcurrentHashMap<Integer, Boolean>();
