@@ -1,8 +1,8 @@
 warm up complete.
 parallel firewall test
-throughput: 742
-count: 1485474
-worker throughput: 742
-worker count: 1485474
-accepted:1050176
+throughput: 791
+count: 1583853
+worker throughput: 791
+worker count: 1583853
+accepted:1121167
 time: 2001
